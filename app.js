@@ -96,7 +96,7 @@ app.post("/blog", upload.single("photo"), async (req, res) => {
   if (!req.file) {
     throw Error("arquivo nao encontrado");
   }
-  const photo = req.file.filename; // File name of the uploaded photo
+  const photo = req.file.filename; // File name of the uploaded dphoto
 
   // Get current date
   const post_day = new Date().toISOString().slice(0, 10);
