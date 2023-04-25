@@ -7,19 +7,14 @@ const multer = require("multer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const path = require("path");
-require("dotenv").config();
+const AWS = require("aws-sdk");
+const multerS3 = require("multer-s3");
+const nodemailer = require("nodemailer");
+const fs = require("fs");
+
+const { S3 } = require("@aws-sdk/client-s3");
 const port = process.env.PORT || 4000;
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname)); //Appending extension
-  },
-});
-
-const upload = multer({ storage: storage });
+require("dotenv").config();
 
 const db = mysql.createPool({
   host: process.env.DB_HOST,
@@ -27,6 +22,25 @@ const db = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_DATABASE,
 });
+
+const s3 = new S3({
+  region: "us-east-1",
+  credentials: {
+    accessKeyId: "AKIATSR3CWEZ2URKJDCU",
+    secretAccessKey: "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",
+  },
+});
+
+const storage = multerS3({
+  s3: s3,
+  bucket: "beno-teste",
+  //acl: "public-read",
+  key: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage: storage });
 
 app.use("/uploads", express.static("uploads"));
 app.use(express.json());
@@ -96,14 +110,14 @@ app.post("/blog", upload.single("photo"), async (req, res) => {
   if (!req.file) {
     throw Error("arquivo nao encontrado");
   }
-  const photo = req.file.filename; // File name of the uploaded dphoto
+  const photo = req.file.location; // URL of the uploaded photo on S3
 
   // Get current date
   const post_day = new Date().toISOString().slice(0, 10);
   console.log({ news, friendly_url, news_title, photo, post_day });
 
   try {
-    const result = db.query(
+    const result = await db.query(
       "INSERT INTO blog (photo, news, friendly_url, news_title, post_day, uuid) VALUES (?, ?, ?, ?, ?, UUID())",
       [photo, news, friendly_url, news_title, post_day]
     );
@@ -115,24 +129,37 @@ app.post("/blog", upload.single("photo"), async (req, res) => {
   }
 });
 
+/* app.get("/uploads/:photo", async (req, res) => {
+  const photo = req.params.photo;
+  try {
+    const [rows] = await db.query(
+      "SELECT photo_data FROM blog WHERE photo = ?",
+      [photo]
+    );
+    if (rows.length === 0) {
+      res.status(404).send({ msg: "Image not found" });
+      return;
+    }
+    const photo_data = rows[0].photo_data;
+    res.contentType("image/jpeg");
+    res.send(photo_data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ msg: "Error processing request" });
+  }
+}); */
+
 app.get("/blog", async (req, res) => {
-  /*   const secret = req.headers.secret;
-  if (secret != "abacaxi") {
-    res.status(403).send({ msg: "Usuário não autorizado" });
-    return;
-  } */
   try {
     db.query("SELECT * FROM blog", (err, results) => {
       if (err) {
         return;
       }
 
-      const link = "https://bmouse.herokuapp.com";
-
-      // Modify the response to include the file path to the uploaded image
+      // Modify the response to include the S3 URL to the uploaded image
       const blogPosts = results.map((post) => ({
         uuid: post.uuid,
-        photo: `${link}/uploads/${post.photo}`, // Add the file path to the photo
+        photo: post.photo, // Add the S3 URL to the photo
         news: post.news,
         friendly_url: post.friendly_url,
         news_title: post.news_title,
@@ -254,6 +281,84 @@ app.put("/blog/:friendly_url", upload.single("photo"), async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).send({ msg: "Error processing request" });
+  }
+});
+
+async function enviarEmailBackend(
+  nome,
+  telefone,
+  email,
+  modalidade,
+  especialidade,
+  mensagem,
+  curriculoFile,
+  curriculoName
+) {
+  try {
+    // Configurações do servidor SMTP
+    let transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: "contas@bmouseproductions.com",
+        pass: "knvwhsvlydkuriuc",
+      },
+    });
+
+    // Corpo do e-mail
+    let info = await transporter.sendMail({
+      from: "contas@bmouseproductions.com",
+      to: ["contas@bmouseproductions.com", "tom@bmouseproductions.com"],
+      subject: "Nova candidatura no formulário de Trabalhe Conosco",
+      html: `<p>Nome: ${nome}</p>
+             <p>Telefone: ${telefone}</p>
+             <p>E-mail: ${email}</p>
+             <p>Modalidade de trabalho: ${modalidade}</p>
+             <p>Especialidade: ${especialidade}</p>
+             <p>Mensagem: ${mensagem}</p>`,
+      attachments: [
+        {
+          filename: curriculoName,
+          content: curriculoFile.split(",")[1],
+          encoding: "base64",
+        },
+      ],
+    });
+
+    console.log("E-mail enviado: %s", info.messageId);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+app.post("/send-email", async (req, res) => {
+  const {
+    nome,
+    telefone,
+    email,
+    modalidade,
+    especialidade,
+    mensagem,
+    curriculoFile,
+    curriculoName,
+  } = req.body;
+
+  try {
+    await enviarEmailBackend(
+      nome,
+      telefone,
+      email,
+      modalidade,
+      especialidade,
+      mensagem,
+      curriculoFile,
+      curriculoName
+    );
+    res.status(200).json({ msg: "E-mail enviado com sucesso" });
+  } catch (error) {
+    console.error("Erro ao enviar e-mail:", error);
+    res.status(500).json({ error: "Erro ao enviar e-mail" });
   }
 });
 
