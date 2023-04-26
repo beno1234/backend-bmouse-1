@@ -258,30 +258,49 @@ app.put("/blog/:friendly_url", upload.single("photo"), async (req, res) => {
   // Check if photo was uploaded
   let photo;
   if (req.file) {
-    photo = req.file.filename;
+    photo = req.file.location; // Use the S3 URL of the uploaded photo
   }
 
-  // Update fields that are not null
-  const fieldsToUpdate = {};
-  if (news) fieldsToUpdate.news = news;
-  if (friendly_url) fieldsToUpdate.friendly_url = friendly_url;
-  if (news_title) fieldsToUpdate.news_title = news_title;
-  if (photo) fieldsToUpdate.photo = photo;
+  // Generate the SQL query string
+  let query = "UPDATE blog SET ";
+  const queryParams = [];
+  if (news) {
+    query += "news = ?, ";
+    queryParams.push(news);
+  }
+  if (friendly_url) {
+    query += "friendly_url = ?, ";
+    queryParams.push(friendly_url);
+  }
+  if (news_title) {
+    query += "news_title = ?, ";
+    queryParams.push(news_title);
+  }
+  if (photo) {
+    query += "photo = ?, ";
+    queryParams.push(photo);
+  }
 
-  try {
-    const query = "UPDATE blog SET ? WHERE friendly_url = ?";
-    db.query(query, [fieldsToUpdate, friendly_url], (error, results) => {
+  query = query.slice(0, -2); // Remove the last comma and space
+  query += " WHERE friendly_url = ?";
+  queryParams.push(friendly_url);
+
+  new Promise((resolve, reject) => {
+    db.query(query, queryParams, (error, results) => {
       if (error) {
-        console.error(error);
-        res.status(500).send({ msg: "Error processing request" });
-        return;
+        reject(error);
+      } else {
+        resolve(results);
       }
-      res.status(200).send({ msg: "Blog post updated successfully" });
     });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send({ msg: "Error processing request" });
-  }
+  })
+    .then((results) => {
+      res.status(200).send({ msg: "Blog post updated successfully" });
+    })
+    .catch((error) => {
+      console.error(error);
+      res.status(500).send({ msg: "Error processing request" });
+    });
 });
 
 async function enviarEmailBackend(
