@@ -304,9 +304,6 @@ app.put("/blog/:friendly_url", upload.single("photo"), async (req, res) => {
     });
 });
 
-const nodemailer = require("nodemailer");
-const smtpTransport = require("nodemailer-smtp-transport");
-
 async function enviarEmailBackend(
   nome,
   telefone,
