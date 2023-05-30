@@ -1,0 +1,51 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "Facebook Conversion API",
+    "description": "An API for interacting with Facebook's Conversion API"
+  },
+  "paths": {
+    "/{event_id}": {
+      "post": {
+        "summary": "Trigger a Facebook event",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "description": "The ID of the event to trigger",
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event_name": {
+                    "type": "string",
+                    "enum": ["Contact", "ViewContent"]
+                  },
+                  "event_time": {
+                    "type": "number"
+                  },
+                  "user_data": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}

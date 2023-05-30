@@ -10,10 +10,11 @@ const path = require("path");
 const AWS = require("aws-sdk");
 const multerS3 = require("multer-s3");
 const nodemailer = require("nodemailer");
+const smtpTransport = require("nodemailer-smtp-transport");
 const fs = require("fs");
 
 const { S3 } = require("@aws-sdk/client-s3");
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 5000;
 require("dotenv").config();
 
 const db = mysql.createPool({
@@ -303,6 +304,9 @@ app.put("/blog/:friendly_url", upload.single("photo"), async (req, res) => {
     });
 });
 
+const nodemailer = require("nodemailer");
+const smtpTransport = require("nodemailer-smtp-transport");
+
 async function enviarEmailBackend(
   nome,
   telefone,
@@ -315,15 +319,17 @@ async function enviarEmailBackend(
 ) {
   try {
     // Configurações do servidor SMTP
-    let transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: "contas@bmouseproductions.com",
-        pass: "knvwhsvlydkuriuc",
-      },
-    });
+    let transporter = nodemailer.createTransport(
+      smtpTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          user: "contas@bmouseproductions.com",
+          pass: "knvwhsvlydkuriuc",
+        },
+      })
+    );
 
     // Corpo do e-mail
     let info = await transporter.sendMail({
