@@ -25,7 +25,7 @@ const db = mysql.createPool({
   database: process.env.DB_DATABASE,
 });
 
-app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
 const s3 = new S3({
