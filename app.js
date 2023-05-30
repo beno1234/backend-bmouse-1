@@ -12,6 +12,7 @@ const multerS3 = require("multer-s3");
 const nodemailer = require("nodemailer");
 const smtpTransport = require("nodemailer-smtp-transport");
 const fs = require("fs");
+const bodyParser = require("body-parser");
 
 const { S3 } = require("@aws-sdk/client-s3");
 const port = process.env.PORT || 5000;
@@ -23,6 +24,9 @@ const db = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_DATABASE,
 });
+
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
 const s3 = new S3({
   region: "us-east-1",
