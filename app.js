@@ -13,6 +13,13 @@ const nodemailer = require("nodemailer");
 const smtpTransport = require("nodemailer-smtp-transport");
 const fs = require("fs");
 const bodyParser = require("body-parser");
+const swaggerUi = require("swagger-ui-express");
+
+const swaggerDocument = require("./swagger.json");
+
+const crypto = require("crypto");
+
+const axios = require("axios");
 
 const { S3 } = require("@aws-sdk/client-s3");
 const port = process.env.PORT || 5000;
@@ -386,6 +393,89 @@ app.post("/send-email", async (req, res) => {
     console.error("Erro ao enviar e-mail:", error);
     res.status(500).json({ error: "Erro ao enviar e-mail" });
   }
+});
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+function hashSha256(data) {
+  return crypto.createHash("sha256").update(data).digest("hex");
+}
+
+const city = "São Paulo";
+const state = "SP";
+const zipcode = "01311-000";
+const country = "Brasil";
+const gender = "M";
+const dateOfBirth = "1990-01-01";
+
+const hashedCity = hashSha256(city);
+const hashedState = hashSha256(state);
+const hashedZipcode = hashSha256(zipcode);
+const hashedCountry = hashSha256(country);
+const hashedGender = hashSha256(gender);
+const hashedDateOfBirth = hashSha256(dateOfBirth);
+
+const user_data = {
+  client_ip_address: "254.254.254.254",
+  client_user_agent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+  fbp: "fb.1.1558763799645.1098115397",
+  fbc: "fb.1.1558571054389.Abk-oru7J5g8eUeVlj.0",
+  external_id: "123456",
+  ct: hashedCity,
+  st: hashedState,
+  zp: hashedZipcode,
+  country: hashedCountry,
+  ge: hashedGender,
+  db: hashedDateOfBirth,
+};
+
+console.log(user_data);
+
+app.post("/:event_id", (req, res) => {
+  const event_id = req.params.event_id;
+  const { event_name, user_data, event_source_url, custom_data } = req.body;
+
+  const event_time = Math.floor(Date.now() / 1000);
+
+  // Crie o objeto de evento baseado no nome do evento
+  let event;
+  if (event_name === "ViewContent") {
+    event = {
+      event_name,
+      event_time,
+      event_source_url,
+      custom_data,
+      user_data,
+    };
+  } else if (event_name === "Contact") {
+    event = {
+      event_name,
+      event_time,
+      user_data,
+    };
+  } else {
+    return res.status(400).json({ error: "Invalid event_name" });
+  }
+
+  axios({
+    method: "post",
+    url: `https://graph.facebook.com/v13.0/298623158823542/events`,
+    data: {
+      data: [event],
+      test_event_code: event_id,
+    },
+    params: {
+      access_token:
+        "EAAxDuNVFlrgBADH9rJ2d1LEi4rGQybsR9JwdlFoxMYXuCtTezZBCsRVwG0F6PwfRj1hY4NILxEgqGh6UuZAFF8A17WFIPeJZC6X1J2aGW1ZBwf2Ty5ckKu9nVN0M68MZBn2273OsnyEaM5DcbASZCf04QL309WuVGY82BUZAZBasoNZAIB89DCX2ZAS7yvHWckoPQZD",
+    },
+  })
+    .then((response) => {
+      res.status(200).json(response.data);
+    })
+    .catch((error) => {
+      res.status(500).json(error.response.data);
+    });
 });
 
 app.listen(port, () => {
