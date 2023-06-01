@@ -13,13 +13,6 @@ const nodemailer = require("nodemailer");
 const smtpTransport = require("nodemailer-smtp-transport");
 const fs = require("fs");
 const bodyParser = require("body-parser");
-const swaggerUi = require("swagger-ui-express");
-
-const swaggerDocument = require("./swagger.json");
-
-const crypto = require("crypto");
-
-const axios = require("axios");
 
 const { S3 } = require("@aws-sdk/client-s3");
 const port = process.env.PORT || 5000;
@@ -395,74 +388,6 @@ app.post("/send-email", async (req, res) => {
   }
 });
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
-function hashSha256(data) {
-  return crypto.createHash("sha256").update(data).digest("hex");
-}
-
-app.post("/:event_id", (req, res) => {
-  const event_id = req.params.event_id;
-  const { event_name, event_source_url, custom_data } = req.body;
-
-  const event_time = Math.floor(Date.now() / 1000);
-
-  // Crie o objeto de evento baseado no nome do evento
-  let event;
-  if (event_name === "ViewContent") {
-    event = {
-      event_name,
-      event_time,
-      event_source_url,
-      custom_data,
-      user_data: {
-        ct: hashSha256(req.body.user_data.ct),
-        st: hashSha256(req.body.user_data.st),
-        zp: hashSha256(req.body.user_data.zp),
-        country: hashSha256(req.body.user_data.country),
-        ge: hashSha256(req.body.user_data.ge),
-        db: hashSha256(req.body.user_data.db),
-      },
-    };
-  } else if (event_name === "Contact") {
-    event = {
-      event_name,
-      event_time,
-      user_data: {
-        ct: hashSha256(req.body.user_data.ct),
-        st: hashSha256(req.body.user_data.st),
-        zp: hashSha256(req.body.user_data.zp),
-        country: hashSha256(req.body.user_data.country),
-        ge: hashSha256(req.body.user_data.ge),
-        db: hashSha256(req.body.user_data.db),
-      },
-    };
-  } else {
-    return res.status(400).json({ error: "Invalid event_name" });
-  }
-
-  console.log("Dados convertidos em hash SHA256:");
-  console.log(event);
-
-  axios({
-    method: "post",
-    url: `https://graph.facebook.com/v13.0/298623158823542/events`,
-    data: {
-      data: [event],
-      test_event_code: event_id,
-    },
-    params: {
-      access_token:
-        "EAAxDuNVFlrgBADH9rJ2d1LEi4rGQybsR9JwdlFoxMYXuCtTezZBCsRVwG0F6PwfRj1hY4NILxEgqGh6UuZAFF8A17WFIPeJZC6X1J2aGW1ZBwf2Ty5ckKu9nVN0M68MZBn2273OsnyEaM5DcbASZCf04QL309WuVGY82BUZAZBasoNZAIB89DCX2ZAS7yvHWckoPQZD",
-    },
-  })
-    .then((response) => {
-      res.status(200).json(response.data);
-    })
-    .catch((error) => {
-      res.status(500).json(error.response.data);
-    });
-});
 app.listen(port, () => {
   console.info(`aplicacao rodando ${port}`);
 });
