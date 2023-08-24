@@ -134,26 +134,6 @@ app.post("/blog", upload.single("photo"), async (req, res) => {
   }
 });
 
-/* app.get("/uploads/:photo", async (req, res) => {
-  const photo = req.params.photo;
-  try {
-    const [rows] = await db.query(
-      "SELECT photo_data FROM blog WHERE photo = ?",
-      [photo]
-    );
-    if (rows.length === 0) {
-      res.status(404).send({ msg: "Image not found" });
-      return;
-    }
-    const photo_data = rows[0].photo_data;
-    res.contentType("image/jpeg");
-    res.send(photo_data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ msg: "Error processing request" });
-  }
-}); */
-
 app.get("/blog", async (req, res) => {
   try {
     db.query("SELECT * FROM blog", (err, results) => {
@@ -229,32 +209,6 @@ app.delete("/blog/:uuid", async (req, res) => {
     res.status(500).send({ msg: "Error processing request" });
   }
 });
-
-/* app.get("/blog/:d", async (req, res) => {
-  try {
-    const friendly_url = req.params.friendly_url;
-    db.query(
-      "SELECT * FROM blog WHERE friendly_url=?",
-      [friendly_url],
-      (err, results) => {
-        if (err) {
-          console.error(err);
-          res.status(500).send({ msg: "Error processing request" });
-          return;
-        }
-        if (results.length === 0) {
-          res.status(404).send({ msg: "Blog post not found" });
-          return;
-        }
-        const blogPost = results[0];
-        res.status(200).send(blogPost);
-      }
-    );
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ msg: "Error processing request" });
-  }
-}); */
 
 app.put("/blog/:friendly_url", upload.single("photo"), async (req, res) => {
   const { news, news_title } = req.body;
