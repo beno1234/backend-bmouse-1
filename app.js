@@ -15,7 +15,7 @@ const fs = require("fs");
 const bodyParser = require("body-parser");
 
 const { S3 } = require("@aws-sdk/client-s3");
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 4000;
 require("dotenv").config();
 
 const db = mysql.createPool({
